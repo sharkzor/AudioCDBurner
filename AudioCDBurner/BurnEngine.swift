@@ -162,7 +162,7 @@ final class BurnModel: ObservableObject {
                 var props = t.properties() ?? [:]
                 if let zeroMSF = DRMSF(frames: 0) {
                     props[DRPreGapLengthKey as AnyHashable] = zeroMSF
-                    t.setProperties(props as NSDictionary as! [AnyHashable: Any])
+                    t.setProperties(props)
                 }
             }
             drTracks.append(t)
@@ -195,7 +195,7 @@ final class BurnModel: ObservableObject {
                 burnProps[DRCDTextKey as AnyHashable] = [block]
             }
         }
-        burn.setProperties(burnProps as NSDictionary as! [AnyHashable: Any])
+        burn.setProperties(burnProps)
         self.activeBurn = burn
 
         // 5. Subscribe to burn-status notifications via DRNotificationCenter.

@@ -2,6 +2,19 @@ import Foundation
 import AVFoundation
 import AudioToolbox
 
+/// Bridge an async throwing call to a synchronous context.
+fileprivate func awaitSync<T>(_ op: @escaping () async throws -> T) throws -> T {
+    let sem = DispatchSemaphore(value: 0)
+    var result: Result<T, Error>!
+    Task.detached {
+        do { result = .success(try await op()) }
+        catch { result = .failure(error) }
+        sem.signal()
+    }
+    sem.wait()
+    return try result.get()
+}
+
 /// Decodes an arbitrary audio file (FLAC/MP3/AAC/M4A/WAV/AIFF/ALAC) to a temporary
 /// AIFF file in Red Book CD-DA format: 44.1 kHz, 16-bit signed big-endian, stereo.
 ///
@@ -37,7 +50,13 @@ final class AudioDecoder {
         let outURL = tmpDir.appendingPathComponent(UUID().uuidString + ".aiff")
 
         let asset = AVURLAsset(url: source)
-        guard let track = asset.tracks(withMediaType: .audio).first else {
+        let audioTracks: [AVAssetTrack]
+        do {
+            audioTracks = try awaitSync { try await asset.loadTracks(withMediaType: .audio) }
+        } catch {
+            throw AudioDecoderError.cannotOpen(source)
+        }
+        guard let track = audioTracks.first else {
             throw AudioDecoderError.cannotOpen(source)
         }
 
