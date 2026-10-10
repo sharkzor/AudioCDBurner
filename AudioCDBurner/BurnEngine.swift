@@ -76,6 +76,16 @@ final class BurnModel: ObservableObject {
         }
         items.remove(atOffsets: offsets)
     }
+    /// Clears the track list, title and status so a new disc can be prepared.
+    /// Burner, speed and gap settings are kept.
+    func newDisc() {
+        guard phase != .decoding && phase != .burning else { return }
+        remove(at: IndexSet(items.indices))
+        discTitle = ""
+        progress = 0
+        statusMessage = ""
+        phase = .idle
+    }
     func move(from source: IndexSet, to destination: Int) { items.move(fromOffsets: source, toOffset: destination) }
 
     deinit {
@@ -221,6 +231,7 @@ final class BurnModel: ObservableObject {
         while !Task.isCancelled {
             let st: [AnyHashable: Any] = burn.status() ?? [:]
             let state = (st[DRStatusStateKey as AnyHashable] as? String) ?? ""
+            applyStatus(st)
             if state == (DRStatusStateDone as String) || state == (DRStatusStateFailed as String) {
                 break
             }
@@ -236,6 +247,10 @@ final class BurnModel: ObservableObject {
     private func handleBurnStatus(_ note: Notification) {
         let burn = (note.object as? DRBurn) ?? activeBurn
         guard let st = burn?.status() else { return }
+        applyStatus(st)
+    }
+
+    private func applyStatus(_ st: [AnyHashable: Any]) {
         let state = (st[DRStatusStateKey as AnyHashable] as? String) ?? ""
         let pct   = (st[DRStatusPercentCompleteKey as AnyHashable] as? NSNumber)?.doubleValue ?? 0
         progress = pct
@@ -247,6 +262,8 @@ final class BurnModel: ObservableObject {
             let err = st[DRErrorStatusKey as AnyHashable] as? [AnyHashable: Any]
             let msg = (err?[DRErrorStatusErrorStringKey as AnyHashable] as? String) ?? "Burn failed."
             statusMessage = msg
+        } else if state == (DRStatusStateFinishing as String) {
+            statusMessage = "Finishing disc…"
         } else if !state.isEmpty {
             statusMessage = state
         }

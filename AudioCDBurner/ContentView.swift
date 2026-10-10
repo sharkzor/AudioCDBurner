@@ -8,6 +8,14 @@ struct ContentView: View {
 
     @State private var selection = Set<UUID>()
     @State private var showingFileImporter = false
+    @State private var confirmingNewDisc = false
+
+    private var isBusy: Bool { model.phase == .decoding || model.phase == .burning }
+
+    private func startNewDisc() {
+        selection.removeAll()
+        model.newDisc()
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -47,6 +55,24 @@ struct ContentView: View {
             .frame(maxWidth: 360)
 
             Spacer()
+
+            Button {
+                if model.phase == .success {
+                    startNewDisc()
+                } else {
+                    confirmingNewDisc = true
+                }
+            } label: {
+                Label("New CD", systemImage: "opticaldisc")
+            }
+            .help("Clear the track list and title to start a new CD")
+            .disabled(isBusy || (model.items.isEmpty && model.discTitle.isEmpty && model.phase == .idle))
+            .confirmationDialog("Start a new CD?", isPresented: $confirmingNewDisc) {
+                Button("Clear Everything", role: .destructive) { startNewDisc() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This removes all tracks and the disc title.")
+            }
 
             Button {
                 showingFileImporter = true
